@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    container_name: station_manager
+    restart: always
+    ports:
+      - "8004:8004"
+    env_file:
+      - .env.example
+    networks:
+      - noaa_ana_net
+    command: >
+      uvicorn main:app --host 0.0.0.0 --port 8004
+
+  ui:
+    image: python:3.12-slim
+    container_name: station_manager_ui
+    restart: always
+    working_dir: /app
+    volumes:
+      - ./streamlit_app.py:/app/streamlit_app.py:ro
+    environment:
+      - API_HOST=http://app:8004/station_manager
+      # Opcional: também dá para setar via env (redundante com a flag):
+      # - STREAMLIT_SERVER_BASEURLPATH=ana_catch_ui
+    ports:
+      - "8505:8501"
+    networks:
+      - noaa_ana_net
+    depends_on:
+      - app
+    command: [
+      "bash","-lc",
+      "pip install --no-cache-dir 'streamlit>=1.26' requests pandas python-dateutil && \
+       streamlit run streamlit_app.py \
+         --server.headless true \
+         --server.address 0.0.0.0 \
+         --server.port 8501 \
+         --server.baseUrlPath station_manager_ui"
+    ]
+
+networks:
+  noaa_ana_net:
+    external: true

@@ -64,14 +64,12 @@ def create_many_stations(
     summary="Lista estações",
 )
 def list_stations(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
     repo: MongoStationRepository = Depends(get_station_repo),
 ):
     try:
         items = repo.list_all_stations()
         # Se seu repo passar a aceitar paginação no find(), troque por skip/limit no Mongo
-        return items[skip: skip + limit]
+        return items
     except RepositoryError as e:
         raise HTTPException(status_code=500, detail=str(e))
 

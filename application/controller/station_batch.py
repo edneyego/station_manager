@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
 
 from application.controller.dependencies.authenticate_user_dependence import get_current_user
 from domain.ports.station_repository_port import StationRepositoryPort
+from domain.service.import_stations import ImportStationsUseCase
 from infrastructure.repository.station_repository import MongoStationRepository
 
 router = APIRouter(tags=["Estações em lote"])
