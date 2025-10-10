@@ -4,6 +4,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from application.controller.dependencies.authenticate_user_dependence import get_current_user
 from domain.models.station_model import StationModel
 from infrastructure.repository.station_repository import (
     MongoStationRepository,
@@ -29,6 +30,7 @@ def get_station_repo() -> MongoStationRepository:
 def create_station(
     station: StationModel,
     repo: MongoStationRepository = Depends(get_station_repo),
+    user=Depends(get_current_user)
 ):
     try:
         repo.save(station=station)  # upsert
@@ -46,6 +48,7 @@ def create_station(
 def create_many_stations(
     stations: List[StationModel],
     repo: MongoStationRepository = Depends(get_station_repo),
+    user=Depends(get_current_user)
 ):
     try:
         affected = repo.save_many(stations=stations)
@@ -100,6 +103,7 @@ def get_station_by_code(
 def delete_station_by_code(
     codigo_estacao: str,
     repo: MongoStationRepository = Depends(get_station_repo),
+    user=Depends(get_current_user)
 ):
     try:
         deleted = repo.remove_station_by_code_station(code_station=codigo_estacao)

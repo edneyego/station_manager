@@ -1,0 +1,28 @@
+# --- Core API ---
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+starlette==0.47.2
+
+# --- Auth / JWT ---
+python-jose[cryptography]==3.5.0
+
+# --- HTTP ---
+requests==2.32.3   # no seu freeze apareceu "requests @ file://...", corresponde a 2.32.3
+
+# --- Configuração ---
+python-dotenv==1.1.1
+apscheduler==3.10.4   # seu freeze listou APScheduler "local build", corresponde à versão estável 3.10.4
+
+# --- Dados ---
+pandas==2.3.1
+pydantic==2.11.7
+pydantic-settings==2.10.1
+pymongo==4.14.0
+
+# --- Kafka ---
+confluent-kafka==2.11.0
+
+# --- Utilidades ---
+Unidecode==1.4.0
+python-multipart==0.0.20
+streamlit==1.49.1
