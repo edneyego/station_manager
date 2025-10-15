@@ -67,7 +67,7 @@ def create_many_stations(
 def list_stations(
     repo: MongoStationRepository = Depends(get_station_repo),
     dados_estacao_manual: Optional[bool] = Query(
-        False,
+        None,
         description="Filtra por estações manuais (true), não manuais (false). Omitir para retornar todas.",
     ),
 ):

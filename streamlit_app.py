@@ -4,7 +4,7 @@ import io
 import json
 import requests
 import streamlit as st
-from typing import Optional, Dict
+from typing import Optional, Dict, Any, List
 
 # ============================
 # Configuração básica
@@ -38,9 +38,12 @@ def api_url(path: str) -> str:
     return f"{base}{path}"
 
 def _headers(auth_required: bool = False) -> Dict[str, str]:
-    headers = {"accept": "application/json"}
+    headers = {"Accept": "application/json"}
     if auth_required and st.session_state.auth.get("token"):
-        headers["Authorization"] = f"{st.session_state.auth.get('token_type','bearer')} {st.session_state.auth['token']}"
+        token = st.session_state.auth.get("token")
+        token_type = st.session_state.auth.get("token_type", "bearer") or "bearer"
+        # format "Bearer <token>" (capitalize token type for clarity)
+        headers["Authorization"] = f"{token_type.capitalize()} {token}"
     return headers
 
 def http_get(path: str, params: Optional[dict] = None, auth: bool = False, timeout: int = 60):
@@ -109,7 +112,7 @@ with st.sidebar:
         st.session_state.api_host = st.text_input(
             "API Host",
             value=current_base,
-            help="Ex.: http://127.0.0.1:8000/station_manager",
+            help="Ex.: http://127.0.0.1:8004/station_manager",
         )
         st.caption(f"Base atual: `{get_api_base()}`")
 
@@ -139,7 +142,7 @@ with st.sidebar:
                 st.session_state.auth = {"token": None, "token_type": "bearer"}
                 if not st.session_state.get("api_host"):
                     st.session_state.api_host = DEFAULT_API_HOST
-                st.rerun()
+                st.experimental_rerun()
         else:
             st.caption("Sem sessão autenticada")
 
@@ -159,23 +162,67 @@ with st.sidebar:
     )
 
 # ============================
+# Utilidades de exibição
+# ============================
+def show_json_or_table(payload: Any):
+    """
+    Exibe lista/dict como tabela ou JSON, dependendo do formato.
+    """
+    if isinstance(payload, list):
+        if len(payload) == 0:
+            st.info("Sem resultados.")
+            return
+        try:
+            st.dataframe(payload, use_container_width=True)
+            return
+        except Exception:
+            st.json(payload)
+            return
+    if isinstance(payload, dict):
+        st.json(payload)
+        return
+    # fallback
+    st.text(str(payload))
+
+# ============================
 # Páginas
 # ============================
-
 def page_listar():
     st.header("📄 Listar estações")
-    st.write("Recupera a lista completa de estações.")
-    if st.button("🔄 Carregar lista"):
-        ok, data = http_get("/stations", auth=False)  # sem skip/limit
+    st.write("Recupera a lista de estações. Use o filtro 'dado_manual' para mostrar apenas estações manuais/não manuais.")
+    col1, col2 = st.columns([3,1])
+    with col1:
+        # default False per openapi default: false
+        dado_manual_choice = st.selectbox(
+            "Filtrar por dado_manual",
+            options=["Todos", "Apenas manual (true)", "Apenas não-manual (false)"],
+            index=0,
+            help="Escolha 'Todos' para omitir o filtro."
+        )
+    with col2:
+        btn = st.button("🔄 Carregar lista")
+
+    if btn:
+        params = {}
+        if dado_manual_choice == "Apenas manual (true)":
+            params["dados_estacao_manual"] = "true"
+        elif dado_manual_choice == "Apenas não-manual (false)":
+            params["dados_estacao_manual"] = "false"
+
+        ok, data = http_get("/stations", params=params, auth=False)
         if ok:
             st.session_state.last_list = data
         else:
+            st.session_state.last_list = None
             st.error(f"Erro ao listar: {data}")
 
     lista = st.session_state.last_list
     if lista:
-        st.success(f"{len(lista)} registro(s) retornado(s).")
-        st.dataframe(lista, use_container_width=True)
+        try:
+            st.success(f"{len(lista)} registro(s) retornado(s).")
+        except Exception:
+            st.success("Resultados retornados.")
+        show_json_or_table(lista)
         jbytes = json.dumps(lista, ensure_ascii=False, indent=2).encode("utf-8")
         st.download_button("⬇️ Baixar JSON", data=jbytes, file_name="stations_list.json", mime="application/json")
 
@@ -190,7 +237,7 @@ def page_buscar_por_codigo():
     if buscar and codigo.strip():
         ok, data = http_get(f"/stations/{codigo.strip()}", auth=False)
         if ok:
-            st.json(data)
+            show_json_or_table(data)
         else:
             st.error(f"Erro: {data}")
 
@@ -231,9 +278,9 @@ def page_criar_atualizar():
         )
         c7, c8 = st.columns(2)
         with c7:
-            dado_manual = st.toggle("dado_manual", value=False)
+            dado_manual = st.checkbox("dado_manual", value=False)
         with c8:
-            data_forecast = st.toggle("data_forecast", value=False)
+            data_forecast = st.checkbox("data_forecast", value=False)
 
         submitted = st.form_submit_button("Salvar")
 
@@ -278,7 +325,7 @@ def page_criar_atualizar():
             if ok:
                 st.success("Estação criada/atualizada com sucesso!")
                 try:
-                    st.json(data)
+                    show_json_or_table(data)
                 except Exception:
                     st.write(data)
             else:
@@ -298,7 +345,7 @@ def page_remover_por_codigo():
         if ok:
             st.success("Removido com sucesso (ou não existia).")
             try:
-                st.json(data)
+                show_json_or_table(data)
             except Exception:
                 st.write(data)
         else:
@@ -340,7 +387,7 @@ def page_upsert_lote():
                 if ok:
                     st.success("Lote processado com sucesso!")
                     try:
-                        st.json(data)
+                        show_json_or_table(data)
                     except Exception:
                         st.write(data)
                 else:
@@ -349,8 +396,8 @@ def page_upsert_lote():
 
 def page_importar_arquivo():
     st.header("📁 Importar estações por arquivo")
-    st.caption("Endpoint: `POST /station/import`.")
-    upsert_existing = st.toggle("upsert_existing", value=False, help="Se marcado, atualiza registros existentes.")
+    st.caption("Endpoint: `POST /station/import` (multipart/form-data).")
+    upsert_existing = st.checkbox("upsert_existing", value=False, help="Se marcado, atualiza registros existentes.")
     uploaded_file = st.file_uploader("Selecione o arquivo", type=["csv", "xlsx", "xls", "json", "txt"])
     importar = st.button("Importar")
     if importar:
@@ -358,13 +405,14 @@ def page_importar_arquivo():
             st.warning("Selecione um arquivo.")
         else:
             file_bytes = uploaded_file.read()
-            files = {"upload": (uploaded_file.name,file_bytes, "text/csv")}
-            params = {"upsert_existing": str(upsert_existing).lower()}
+            # envia multipart com campo 'upload' conforme schema
+            files = {"upload": (uploaded_file.name, file_bytes)}
+            params = {"upsert_existing": str(bool(upsert_existing)).lower()}
             ok, data = http_post("/station/import", files=files, params=params, auth=True)
             if ok:
                 st.success("Importação enviada com sucesso!")
                 try:
-                    st.json(data)
+                    show_json_or_table(data)
                 except Exception:
                     st.write(data)
             else:
