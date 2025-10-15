@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -57,6 +57,7 @@ def create_many_stations(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 @router.get(
     "",
     response_model=List[StationModel],
@@ -65,9 +66,13 @@ def create_many_stations(
 )
 def list_stations(
     repo: MongoStationRepository = Depends(get_station_repo),
+    dados_estacao_manual: Optional[bool] = Query(
+        False,
+        description="Filtra por estações manuais (true), não manuais (false). Omitir para retornar todas.",
+    ),
 ):
     try:
-        items = repo.list_all_stations()
+        items = repo.list_all_stations(dados_estacao_manual=dados_estacao_manual)
         # Se seu repo passar a aceitar paginação no find(), troque por skip/limit no Mongo
         return items
     except RepositoryError as e:

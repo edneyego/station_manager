@@ -133,13 +133,19 @@ class MongoStationRepository(StationRepositoryPort):
     # Operações de leitura
     # ---------------------------
 
-    def list_all_stations(self) -> List[StationModel]:
+    def list_all_stations(self, dados_estacao_manual: Optional[bool] = None) -> List[StationModel]:
         """
         Retorna todas as estações.
+        Se dados_estacao_manual for True/False filtra por esse valor; se for None retorna tudo.
         Em falha, lança RepositoryError.
         """
         try:
-            docs = list(self.collection.find({}))
+            if dados_estacao_manual is None:
+                filtro = {}  # sem filtro — retorna todas as estações
+            else:
+                filtro = {"dado_manual": {"$eq": dados_estacao_manual}}
+
+            docs = list(self.collection.find(filtro))
             return [StationModel(**doc) for doc in docs]
         except mg_errors.PyMongoError as e:
             log.exception("Erro Mongo ao listar estações.")

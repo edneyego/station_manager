@@ -19,7 +19,7 @@ class StationRepositoryPort(Protocol):
         """Upsert em lote. Retorna total afetado (matched + upserted)."""
         ...
 
-    def list_all_stations(self) -> Iterable[StationModel]:
+    def list_all_stations(self, dados_estacao_manual: bool | None = False) -> Iterable[StationModel]:
         """Lista todas as estações (pode ser gerador/stream para evitar alta memória)."""
         ...
 
