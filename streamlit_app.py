@@ -2,6 +2,8 @@
 import os
 import io
 import json
+
+import pandas as pd
 import requests
 import streamlit as st
 from typing import Optional, Dict, Any, List
@@ -166,7 +168,7 @@ with st.sidebar:
 # ============================
 def show_json_or_table(payload: Any):
     """
-    Exibe lista/dict como tabela ou JSON, dependendo do formato.
+    Exibe lista/dict como tabela (interativa) ou JSON.
     """
     if isinstance(payload, list):
         if len(payload) == 0:
@@ -178,9 +180,12 @@ def show_json_or_table(payload: Any):
         except Exception:
             st.json(payload)
             return
+
     if isinstance(payload, dict):
-        st.json(payload)
+        df = pd.DataFrame(payload, index=[0])
+        st.dataframe(df, use_container_width=True)
         return
+
     # fallback
     st.text(str(payload))
 
@@ -244,7 +249,7 @@ def page_buscar_por_codigo():
 def page_criar_atualizar():
     st.header("➕ Criar/Atualizar estação (upsert)")
     st.caption("Obrigatórios: ponto, codigo_estacao, id_noaa, conversor, sensor, bacia.")
-    with st.form("form_station"):
+    with st.form("form_station", clear_on_submit=True):
         # Linha 1
         c1, c2, c3 = st.columns([1.5, 1, 1])
         with c1:
