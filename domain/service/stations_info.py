@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Iterable, Any
 
 from pydantic import field_validator
@@ -29,6 +30,8 @@ class StationInformation:
         resp = self.ana_client.fetch_data(codigo=station.codigo_estacao) or {}
         station_info = resp.get("items") or []
         if not station_info:
+            logging.warning(f"Não foram encontrado dados adicionais para a estação {station.codigo_estacao}")
+            logging.warning(station_info)
             return station
 
         for itens in station_info:

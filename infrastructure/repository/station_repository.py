@@ -63,6 +63,7 @@ class MongoStationRepository(StationRepositoryPort):
             except Exception:
                 log.warning("Falha no enriquecimento da estação %s. Seguindo com persistência.",
                             getattr(station, "codigo_estacao", "?"), exc_info=True)
+                raise RepositoryError(f"Falha ao buscar dados adicionais da estação {station.ponto} - {station.codigo_estacao}, na API ANA")
 
             payload = station.model_dump(exclude_none=True)
             res = self.collection.replace_one(
@@ -96,6 +97,7 @@ class MongoStationRepository(StationRepositoryPort):
                 except Exception:
                     log.warning("Falha no enriquecimento da estação %s durante bulk.",
                                 getattr(e, "codigo_estacao", "?"), exc_info=True)
+                    raise RepositoryError(f"Falha ao buscar dados adicionais da estação {e.ponto} - {e.codigo_estacao}, na API ANA")
 
                 ops.append(
                     ReplaceOne(

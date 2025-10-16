@@ -14,7 +14,7 @@ st.set_page_config(page_title="Station Manager", page_icon="🛰️", layout="wi
 # ============================
 # Estado & Defaults seguros
 # ============================
-DEFAULT_API_HOST = os.getenv("API_HOST", "http://127.0.0.1:8004/station_manager")
+DEFAULT_API_HOST = os.getenv("API_HOST", "http://127.0.0.1:8006/station_manager")
 if "api_host" not in st.session_state or not st.session_state.get("api_host"):
     st.session_state.api_host = DEFAULT_API_HOST
 if "auth" not in st.session_state:
@@ -352,42 +352,82 @@ def page_remover_por_codigo():
             st.error(f"Erro: {data}")
 
 def page_upsert_lote():
-    st.header("📦 Upsert em lote (JSON)")
-    st.caption("Envie um **array JSON** de objetos `StationModel`.")
-    col_up1, col_up2 = st.columns(2)
-    with col_up1:
+    st.header("📦 Upsert em lote (JSON ou campos)")
+    st.caption("Envie um **array JSON** de objetos `StationModel` ou insira manualmente.")
+
+    col_up1 = st.columns(1)
+    with col_up1[0]:
         uploaded_json = st.file_uploader("Upload de arquivo JSON", type=["json"])
-    with col_up2:
-        json_text = st.text_area(
-            "Ou cole o JSON aqui",
-            height=300,
-            placeholder='[\n  {"ponto":"...","codigo_estacao":"...","id_noaa":"...","conversor":1,"sensor":"...","bacia":"..."},\n  {...}\n]'
-        )
+
+    if 'station_list' not in st.session_state:
+        st.session_state['station_list'] = []
+
+    # Inicializar campos caso necessário
+    for key, default in [
+        ('ponto', ''), ('codigo_estacao', ''), ('id_noaa', ''), ('conversor', 0),
+        ('sensor', ''), ('bacia', ''), ('data_forecast', False),
+        ('cota_min', 0), ('janela', 0), ('previsao', 0)
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = default
+
+    with st.form(key='station_form', clear_on_submit=True):
+        ponto = st.text_input("Ponto", key='ponto')
+        codigo_estacao = st.text_input("Código Estação", key='codigo_estacao')
+        id_noaa = st.text_input("ID NOAA", key='id_noaa')
+        conversor = st.number_input("Conversor", value=st.session_state['conversor'], min_value=0, key='conversor')
+        sensor = st.text_input("Sensor", key='sensor')
+        bacia = st.text_input("Bacia", key='bacia')
+        data_forecast = st.checkbox("Ativar Previsão", value=st.session_state['data_forecast'], key='data_forecast')
+        cota_min = st.number_input("Cota minima", value=st.session_state['cota_min'], min_value=0, key='cota_min')
+        janela = st.number_input("Janela Previsão", value=st.session_state['janela'], min_value=0, key='janela')
+        previsao = st.number_input("Qtd horas previsão", value=st.session_state['previsao'], min_value=0, key='previsao')
+
+        add_button = st.form_submit_button("Adicionar à lista")
+
+        if add_button:
+            new_station = {
+                "ponto": st.session_state.ponto,
+                "codigo_estacao": st.session_state.codigo_estacao,
+                "id_noaa": st.session_state.id_noaa,
+                "conversor": st.session_state.conversor,
+                "sensor": st.session_state.sensor,
+                "bacia": st.session_state.bacia,
+                "data_forecast": st.session_state.data_forecast,
+                "cota_min": st.session_state.cota_min,
+                "janela": st.session_state.janela,
+                "previsao": st.session_state.previsao,
+            }
+            st.session_state.station_list.append(new_station)
+            st.rerun()
+
+    st.write("### Lista de estações a enviar")
+    st.dataframe(st.session_state.station_list)
+
     enviar = st.button("Enviar lote")
     if enviar:
         payload = None
-        if uploaded_json is not None:
+        if st.session_state.station_list:
+            payload = st.session_state.station_list
+        elif uploaded_json is not None:
             try:
                 payload = json.load(uploaded_json)
             except Exception as e:
                 st.error(f"JSON inválido no arquivo: {e}")
-        elif (json_text or "").strip():
-            try:
-                payload = json.loads(json_text)
-            except Exception as e:
-                st.error(f"JSON inválido no texto: {e}")
         else:
-            st.warning("Forneça um arquivo JSON ou cole o JSON no campo de texto.")
+            st.warning("Forneça um arquivo JSON ou adicione itens manualmente.")
 
         if payload is not None:
             if not isinstance(payload, list):
                 st.error("O JSON deve ser um **array** de StationModel.")
             else:
+                # Substitua pelo seu método
                 ok, data = http_post("/stations/estacoes_lote", body=payload, auth=True)
                 if ok:
                     st.success("Lote processado com sucesso!")
                     try:
                         show_json_or_table(data)
+                        st.session_state.station_list = []
                     except Exception:
                         st.write(data)
                 else:
