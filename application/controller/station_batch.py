@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
 
 from application.controller.dependencies.authenticate_user_dependence import get_current_user
@@ -19,6 +21,7 @@ async def import_stations(
     user=Depends(get_current_user)
 ):
     if upload.content_type not in ("text/plain", "text/csv", "application/vnd.ms-excel"):
+        logging.info(f"Media type archive: {upload.content_type}")
         raise HTTPException(status_code=415, detail=f"Tipo de arquivo não suportado: {upload.content_type}")
 
     data = await upload.read()

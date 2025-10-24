@@ -439,6 +439,7 @@ def page_upsert_lote():
                     st.error("Erro ao processar o lote.")
                     st.json(data)
 
+
 def page_importar_arquivo():
     st.header("📁 Importar estações por arquivo")
     st.caption("Endpoint: `POST /station/import` (multipart/form-data).")
@@ -450,9 +451,14 @@ def page_importar_arquivo():
             st.warning("Selecione um arquivo.")
         else:
             file_bytes = uploaded_file.read()
-            # envia multipart com campo 'upload' conforme schema
-            files = {"upload": (uploaded_file.name, file_bytes)}
+
+            # Obter o content_type do arquivo do Streamlit
+            content_type = uploaded_file.type or "text/csv"
+
+            # Tupla de 3 elementos: (nome, conteúdo, content_type)
+            files = {"upload": (uploaded_file.name, file_bytes, content_type)}
             params = {"upsert_existing": str(bool(upsert_existing)).lower()}
+
             ok, data = http_post("/station/import", files=files, params=params, auth=True)
             if ok:
                 st.success("Importação enviada com sucesso!")
@@ -463,6 +469,7 @@ def page_importar_arquivo():
             else:
                 st.error("Erro na importação.")
                 st.json(data)
+
 
 # ============================
 # Router das páginas
